@@ -1,6 +1,7 @@
 package ch.bfh.pancake;
 
 import java.util.Arrays;
+import java.util.concurrent.ThreadLocalRandom;
 
 /**
  * Created by Jan on 29.11.2016.
@@ -20,32 +21,39 @@ public class Main {
         return h;
     }
 
-    private static int[] pancakesUnorderd = new int[]{4, 8, 7, 5,3,2,1};
+    private static int[] pancakesUnorderd = ThreadLocalRandom.current().ints(1,30).distinct().limit(29).toArray();
 
 
     public static void main(String... args) {
         idaStar(pancakesUnorderd);
     }
 
-    private static int[] idaStar(int[] unsortedPancakes) {
+    private static void idaStar(int[] unsortedPancakes) {
         int bound = heuristic(unsortedPancakes);
         System.out.println("SEARCH BOUND IS "+bound);
-        search(unsortedPancakes, 0, ++bound);
-        return new int[]{};
+        System.out.println(Arrays.toString(unsortedPancakes));
+        while(!search(unsortedPancakes, 0, bound)) {
+            bound++;
+            System.out.println("SEARCH BOUND IS NOW NEW "+bound);
+
+        }
     }
 
 
-    private static void search(int[] pancakes, int g, int bound) {
+    private static boolean search(int[] pancakes, int g, int bound) {
         //System.out.println(g);
         int f = g + heuristic(pancakes);
-        if (f > bound) return;
+        if (f > bound) return false;
         if(isSorted(pancakes)) {
-            return;
+            return true;
         }
         for (int i = 2; i <= pancakes.length; i++) {
             //System.out.println("Flip at " + i);
-            search(flipAt(pancakes, i), g + 1, bound);
+            if(search(flipAt(pancakes, i), g + 1, bound)) {
+                return true;
+            }
         }
+        return false;
     }
 
     private static int[] flipAt(int[] pancakes, int position) {
