@@ -36,7 +36,7 @@ public class Sequential {
             if ("random".equalsIgnoreCase(args[1])) {
                 pancakesUnorderd = ThreadLocalRandom.current().ints(1, 30).distinct().limit(29).toArray();
             } else if ("changed".equalsIgnoreCase(args[1])) {
-                pancakesUnorderd = new int[]{2, 1, 4, 3, 6, 5, 8, 7, 10, 9, 12, 11, 14, 13, 16, 15, 17};
+                pancakesUnorderd = new int[]{2, 1, 4, 3, 6, 5, 8, 7, 10, 9, 12, 11, 14, 13, 15 };
             } else {
                 System.out.println("Please start the program with valid paramters");
                 System.out.println("java Sequential [first/all] [random/changed]");
@@ -123,6 +123,7 @@ public class Sequential {
             }
             if (isSorted(currentPancakes.pancake)) {
                 System.out.println(Arrays.toString(currentPancakes.pancake) + " is a solution!");
+                printPath(currentPancakes);
                 return true;
             }
 
@@ -132,6 +133,18 @@ public class Sequential {
             }
         }
         return false;
+    }
+
+    private static void printPath(PancakeNode currentPancakes) {
+        Deque<int[]> path = new ArrayDeque<>();
+        path.addFirst(currentPancakes.pancake);
+        while((currentPancakes = currentPancakes.cameFrom) != null) {
+            path.addFirst(currentPancakes.pancake);
+        }
+        int i = 0;
+        while (!path.isEmpty()) {
+            System.out.println("State " + i++ + ":" + Arrays.toString(path.removeFirst()));
+        }
     }
 
     private static class PancakeNode {
