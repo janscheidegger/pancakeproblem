@@ -1,7 +1,8 @@
 package ch.bfh.pancake;
 
+import java.util.ArrayDeque;
 import java.util.Arrays;
-import java.util.Stack;
+import java.util.Deque;
 import java.util.concurrent.ThreadLocalRandom;
 
 /**
@@ -14,65 +15,138 @@ public class Sequential {
     // Numbers of pancakes which are not of adjacent size to the pancake below
     private static int heuristic(int[] unsortedPancakes) {
         int h = 0;
-        for(int i=0; i < unsortedPancakes.length -1; i++) {
-            if(Math.abs(unsortedPancakes[i] - unsortedPancakes[i+1]) > 1) {
+        for (int i = 0; i < unsortedPancakes.length - 1; i++) {
+            if (Math.abs(unsortedPancakes[i] - unsortedPancakes[i + 1]) > 1) {
                 h++;
             }
         }
         return h;
     }
 
-//    private static int[] pancakesUnorderd = ThreadLocalRandom.current().ints(1,30).distinct().limit(29).toArray();
-private static int[] pancakesUnorderd = {2, 1, 4, 3, 6, 5, 8, 7, 10, 9, 12, 11, 14, 13, 15 };
+    //    private static int[] pancakesUnorderd = ThreadLocalRandom.current().ints(1,30).distinct().limit(29).toArray();
+//    private static int[] pancakesUnorderd = {2, 1, 4, 3, 6, 5, 8, 7, 10, 9, 12, 11, 14, 13, 15};
+    private static int[] pancakesUnorderd;
 
 
     public static void main(String... args) {
-        idaStar(pancakesUnorderd);
+        if (args.length != 2) {
+            System.out.println("Please start the program with valid paramters");
+            System.out.println("java Sequential [first/all] [random/changed]");
+        } else {
+            if ("random".equalsIgnoreCase(args[1])) {
+                pancakesUnorderd = ThreadLocalRandom.current().ints(1, 30).distinct().limit(29).toArray();
+            } else if ("changed".equalsIgnoreCase(args[1])) {
+                pancakesUnorderd = new int[]{2, 1, 4, 3, 6, 5, 8, 7, 10, 9, 12, 11, 14, 13, 16, 15, 17};
+            } else {
+                System.out.println("Please start the program with valid paramters");
+                System.out.println("java Sequential [first/all] [random/changed]");
+            }
+
+            if ("first".equalsIgnoreCase(args[0])) {
+                idaStarFirst(pancakesUnorderd);
+            } else if ("all".equalsIgnoreCase(args[0])) {
+                idaStarCount(pancakesUnorderd);
+            } else {
+                System.out.println("Please start the program with valid paramters");
+                System.out.println("java Sequential [first/all] [random/changed]");
+            }
+        }
     }
 
-    private static void idaStar(int[] unsortedPancakes) {
+    private static void idaStarCount(int[] unsortedPancakes) {
         long start = System.nanoTime();
         int bound = heuristic(unsortedPancakes);
-        System.out.println("SEARCH BOUND IS "+bound);
+        System.out.println("SEARCH BOUND IS " + bound);
         System.out.println(Arrays.toString(unsortedPancakes));
-        while(!search(unsortedPancakes, bound)) {
+        int count;
+        while ((count = count(unsortedPancakes, bound)) < 1) {
             bound++;
-            System.out.println("SEARCH BOUND IS NOW NEW "+bound);
+            System.out.println("SEARCH BOUND IS NOW NEW " + bound);
         }
-        System.out.println((System.nanoTime() - start)/1E9);
+        System.out.println(count);
+        System.out.println((System.nanoTime() - start) / 1E9);
+    }
+
+    private static void idaStarFirst(int[] unsortedPancakes) {
+        long start = System.nanoTime();
+        int bound = heuristic(unsortedPancakes);
+        System.out.println("SEARCH BOUND IS " + bound);
+        System.out.println(Arrays.toString(unsortedPancakes));
+        while (!search(unsortedPancakes, bound)) {
+            bound++;
+            System.out.println("SEARCH BOUND IS NOW NEW " + bound);
+        }
+        System.out.println((System.nanoTime() - start) / 1E9);
+    }
+
+    private static int count(int[] pancakes, int bound) {
+        Deque<int[]> pancakeStack = new ArrayDeque<>();
+        Deque<Integer> depthStack = new ArrayDeque<>();
+        pancakeStack.addFirst(pancakes);
+        depthStack.addFirst(0);
+
+        int count = 0;
+        int[] currentPancakes;
+        Integer depth;
+        while (!depthStack.isEmpty() && !pancakeStack.isEmpty()) {
+            currentPancakes = pancakeStack.removeFirst();
+            depth = depthStack.removeFirst();
+            int f = depth++ + heuristic(currentPancakes);
+            if (f > bound) continue;
+            if (isSorted(currentPancakes)) {
+                count++;
+            }
+
+            for (int i = 2; i <= currentPancakes.length; i++) {
+                pancakeStack.addFirst(flipAt(currentPancakes, i));
+                depthStack.addFirst(depth);
+            }
+        }
+        return count;
     }
 
 
     private static boolean search(int[] pancakes, int bound) {
+        Deque<PancakeNode> pancakeStack = new ArrayDeque<>();
+        Deque<Integer> depthStack = new ArrayDeque<>();
+        pancakeStack.addFirst(new PancakeNode(pancakes, null));
+        depthStack.addFirst(0);
 
-        Stack<int[]> pancakeStack = new Stack<>();
-        Stack<Integer> depthStack = new Stack<>();
-        pancakeStack.push(pancakes);
-        depthStack.push(0);
-
-        int[] currentPancakes;
+        PancakeNode currentPancakes;
         Integer depth;
-        while(!depthStack.empty() && !pancakeStack.empty())  {
-            currentPancakes = pancakeStack.pop();
-            depth = depthStack.pop();
-            int f = depth++ + heuristic(currentPancakes);
-            if (f > bound) continue;
-            if(isSorted(currentPancakes)) {
-                System.out.println(Arrays.toString(currentPancakes) + " is a solution!");
+        while (!depthStack.isEmpty() && !pancakeStack.isEmpty()) {
+            currentPancakes = pancakeStack.removeFirst();
+            depth = depthStack.removeFirst();
+            int f = depth++ + heuristic(currentPancakes.pancake);
+            if (f > bound) {
+                continue;
+            }
+            if (isSorted(currentPancakes.pancake)) {
+                System.out.println(Arrays.toString(currentPancakes.pancake) + " is a solution!");
                 return true;
             }
 
-            for (int i = 2; i <= currentPancakes.length; i++) {
-                pancakeStack.push(flipAt(currentPancakes, i));
-                depthStack.push(depth);
+            for (int i = 2; i <= currentPancakes.pancake.length; i++) {
+                pancakeStack.addFirst(new PancakeNode(flipAt(currentPancakes.pancake, i), currentPancakes));
+                depthStack.addFirst(depth);
             }
         }
         return false;
     }
 
+    private static class PancakeNode {
+        int[] pancake;
+        PancakeNode cameFrom;
+
+        PancakeNode(int[] pancake, PancakeNode cameFrom) {
+            this.pancake = pancake;
+            this.cameFrom = cameFrom;
+        }
+    }
+
     private static int[] flipAt(int[] pancakes, int position) {
         int[] temp = Arrays.copyOf(pancakes, pancakes.length);
-        for(int i = 0; i<position; i++) {
+        for (int i = 0; i < position; i++) {
             temp[i] = pancakes[position - i - 1];
         }
         return temp;
@@ -80,13 +154,12 @@ private static int[] pancakesUnorderd = {2, 1, 4, 3, 6, 5, 8, 7, 10, 9, 12, 11, 
 
     private static boolean isSorted(int[] pancakes) {
         int previous = pancakes[0];
-        for(int i = 1; i < pancakes.length; i++) {
-            if(previous > pancakes[i]) {
+        for (int i = 1; i < pancakes.length; i++) {
+            if (previous > pancakes[i]) {
                 return false;
             }
             previous = pancakes[i];
         }
-        System.out.println("!!!! FOUND!!!!" +Arrays.toString(pancakes));
         return true;
     }
 
