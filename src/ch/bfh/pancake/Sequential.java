@@ -1,12 +1,13 @@
 package ch.bfh.pancake;
 
 import java.util.Arrays;
+import java.util.Stack;
 import java.util.concurrent.ThreadLocalRandom;
 
 /**
  * Created by Jan on 29.11.2016.
  */
-public class Main {
+public class Sequential {
 
 
     // Gap heuristic
@@ -22,7 +23,8 @@ public class Main {
     }
 
 //    private static int[] pancakesUnorderd = ThreadLocalRandom.current().ints(1,30).distinct().limit(29).toArray();
-    private static int[] pancakesUnorderd = {2, 1, 4, 3, 6, 5, 8, 7, 10, 9, 12, 11, 14, 13, 15 };
+private static int[] pancakesUnorderd = {2, 1, 4, 3, 6, 5, 8, 7, 10, 9, 12, 11, 14, 13, 15 };
+
 
     public static void main(String... args) {
         idaStar(pancakesUnorderd);
@@ -33,7 +35,7 @@ public class Main {
         int bound = heuristic(unsortedPancakes);
         System.out.println("SEARCH BOUND IS "+bound);
         System.out.println(Arrays.toString(unsortedPancakes));
-        while(!search(unsortedPancakes, 0, bound)) {
+        while(!search(unsortedPancakes, bound)) {
             bound++;
             System.out.println("SEARCH BOUND IS NOW NEW "+bound);
         }
@@ -41,17 +43,28 @@ public class Main {
     }
 
 
-    private static boolean search(int[] pancakes, int g, int bound) {
-        //System.out.println(g);
-        int f = g + heuristic(pancakes);
-        if (f > bound) return false;
-        if(isSorted(pancakes)) {
-            return true;
-        }
-        for (int i = 2; i <= pancakes.length; i++) {
-            //System.out.println("Flip at " + i);
-            if(search(flipAt(pancakes, i), g + 1, bound)) {
+    private static boolean search(int[] pancakes, int bound) {
+
+        Stack<int[]> pancakeStack = new Stack<>();
+        Stack<Integer> depthStack = new Stack<>();
+        pancakeStack.push(pancakes);
+        depthStack.push(0);
+
+        int[] currentPancakes;
+        Integer depth;
+        while(!depthStack.empty() && !pancakeStack.empty())  {
+            currentPancakes = pancakeStack.pop();
+            depth = depthStack.pop();
+            int f = depth++ + heuristic(currentPancakes);
+            if (f > bound) continue;
+            if(isSorted(currentPancakes)) {
+                System.out.println(Arrays.toString(currentPancakes) + " is a solution!");
                 return true;
+            }
+
+            for (int i = 2; i <= currentPancakes.length; i++) {
+                pancakeStack.push(flipAt(currentPancakes, i));
+                depthStack.push(depth);
             }
         }
         return false;
