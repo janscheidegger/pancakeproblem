@@ -80,26 +80,21 @@ public class Sequential {
     }
 
     private static int count(int[] pancakes, int bound) {
-        Deque<int[]> pancakeStack = new ArrayDeque<>();
-        Deque<Integer> depthStack = new ArrayDeque<>();
-        pancakeStack.addFirst(pancakes);
-        depthStack.addFirst(0);
+        Deque<PancakeNode> pancakeStack = new ArrayDeque<>();
+        pancakeStack.addFirst(new PancakeNode(pancakes, null, 0));
 
         int count = 0;
-        int[] currentPancakes;
-        Integer depth;
-        while (!depthStack.isEmpty() && !pancakeStack.isEmpty()) {
+        PancakeNode currentPancakes;
+        while (!pancakeStack.isEmpty()) {
             currentPancakes = pancakeStack.removeFirst();
-            depth = depthStack.removeFirst();
-            int f = depth++ + heuristic(currentPancakes);
+            int f = currentPancakes.depth + heuristic(currentPancakes.pancake);
             if (f > bound) continue;
-            if (isSorted(currentPancakes)) {
+            if (isSorted(currentPancakes.pancake)) {
                 count++;
             }
 
-            for (int i = 2; i <= currentPancakes.length; i++) {
-                pancakeStack.addFirst(flipAt(currentPancakes, i));
-                depthStack.addFirst(depth);
+            for (int i = 2; i <= currentPancakes.pancake.length; i++) {
+                pancakeStack.addFirst(new PancakeNode(flipAt(currentPancakes.pancake, i), currentPancakes, ++currentPancakes.depth));
             }
         }
         return count;
@@ -108,16 +103,12 @@ public class Sequential {
 
     private static boolean search(int[] pancakes, int bound) {
         Deque<PancakeNode> pancakeStack = new ArrayDeque<>();
-        Deque<Integer> depthStack = new ArrayDeque<>();
-        pancakeStack.addFirst(new PancakeNode(pancakes, null));
-        depthStack.addFirst(0);
+        pancakeStack.addFirst(new PancakeNode(pancakes, null, 0));
 
         PancakeNode currentPancakes;
-        Integer depth;
-        while (!depthStack.isEmpty() && !pancakeStack.isEmpty()) {
+        while (!pancakeStack.isEmpty()) {
             currentPancakes = pancakeStack.removeFirst();
-            depth = depthStack.removeFirst();
-            int f = depth++ + heuristic(currentPancakes.pancake);
+            int f = currentPancakes.depth + heuristic(currentPancakes.pancake);
             if (f > bound) {
                 continue;
             }
@@ -127,9 +118,9 @@ public class Sequential {
                 return true;
             }
 
+            int nextDepth = ++currentPancakes.depth;
             for (int i = 2; i <= currentPancakes.pancake.length; i++) {
-                pancakeStack.addFirst(new PancakeNode(flipAt(currentPancakes.pancake, i), currentPancakes));
-                depthStack.addFirst(depth);
+                pancakeStack.addFirst(new PancakeNode(flipAt(currentPancakes.pancake, i), currentPancakes, nextDepth));
             }
         }
         return false;
@@ -150,10 +141,12 @@ public class Sequential {
     private static class PancakeNode {
         int[] pancake;
         PancakeNode cameFrom;
+        int depth;
 
-        PancakeNode(int[] pancake, PancakeNode cameFrom) {
+        PancakeNode(int[] pancake, PancakeNode cameFrom, int depth) {
             this.pancake = pancake;
             this.cameFrom = cameFrom;
+            this.depth = depth;
         }
     }
 
