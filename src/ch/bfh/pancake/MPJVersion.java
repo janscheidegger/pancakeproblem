@@ -90,11 +90,12 @@ public class MPJVersion {
                             break;
                         }
                         pancakeStack.addFirst(inputBuffer[0]);
-                        System.out.println("got an answer from Worker");
+//                        System.out.println("got an answer from Worker");
                         requests[i] = MPI.COMM_WORLD.Irecv(inputBuffer, 0, 1, MPI.OBJECT, i, 1);
                         inputBuffer[0] = pancakeStack.removeFirst();
-                        System.out.println("Sent new Task");
-                        System.out.println(pancakeStack.size());
+//                        System.out.println("Sent new Task");
+//                        System.out.println(pancakeStack.size());
+//                        System.out.println(Arrays.toString(inputBuffer[0].pancake));
                         MPI.COMM_WORLD.Isend(inputBuffer, 0, 1, MPI.OBJECT, i , 1);
 
                     }
@@ -105,18 +106,20 @@ public class MPJVersion {
         } else {
             boolean run = true;
             while (run) {
-                System.out.println("Listening for Tasks...");
+//                System.out.println("Listening for Tasks...");
                 MPI.COMM_WORLD.Recv(inputBuffer, 0, 1, MPI.OBJECT, 0, 1);
-                System.out.println("Got Task");
+//                System.out.println("Got Task");
 
                 if(inputBuffer[0] == null) {
                     run = false;
                     continue;
                 }
+                System.out.println("rank: "+ me + " -> "+Arrays.toString(inputBuffer[0].pancake));
 
                 depth = inputBuffer[0].depth;
-                int f = depth++ + heuristic(inputBuffer[0].pancake);
-                System.out.println("heuristics is: "+f);
+                int heuristic = heuristic(inputBuffer[0].pancake);
+                int f = depth++ + heuristic;
+                System.out.println("heuristics is: "+heuristic);
                 if (f <= bound) {
                     if (isSorted(inputBuffer[0].pancake)) {
                         System.out.println(Arrays.toString(inputBuffer[0].pancake) + " is a solution!");
@@ -125,13 +128,11 @@ public class MPJVersion {
 
                     }
                     for (int i = 2; i <= inputBuffer[0].pancake.length; i++) {
-                        System.out.println("Sent node to chef!");
+//                        System.out.println("Sent node to chef!");
                         inputBuffer[0] = new PancakeNode(flipAt(inputBuffer[0].pancake, i), inputBuffer[0], depth);
-                        System.out.println("At Depth: "+inputBuffer[0].depth);
+//                        System.out.println("At Depth: "+inputBuffer[0].depth);
                         MPI.COMM_WORLD.Isend(inputBuffer, 0, 1, MPI.OBJECT, 0, 1);
                     }
-                } else {
-                    System.out.println("Throw!!");
                 }
             }
         }
