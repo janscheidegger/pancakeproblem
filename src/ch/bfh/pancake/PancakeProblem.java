@@ -1,5 +1,13 @@
 package ch.bfh.pancake;
 
+import org.apache.commons.cli.CommandLine;
+import org.apache.commons.cli.CommandLineParser;
+import org.apache.commons.cli.DefaultParser;
+import org.apache.commons.cli.HelpFormatter;
+import org.apache.commons.cli.Option;
+import org.apache.commons.cli.Options;
+import org.apache.commons.cli.ParseException;
+
 import java.io.IOException;
 import java.util.ArrayDeque;
 import java.util.Arrays;
@@ -23,6 +31,9 @@ public class PancakeProblem {
     }
 
     public static void main(String... args) {
+
+        //parseInputArguments(args);
+
         long start = System.nanoTime();
         int[] pancakes = {2, 1, 4, 3, 6, 5, 8, 7, 10, 9, 12, 11, 14, 13, 16, 15, 17};
         int bound = gapHeuristic(pancakes);
@@ -35,6 +46,39 @@ public class PancakeProblem {
         long end = System.nanoTime();
         System.out.println((end - start)/1E9);
         System.out.println(count);
+    }
+
+    private static void parseInputArguments(String[] args) {
+        Options options = new Options();
+
+        Option mode = new Option("m", "mode", true, "first or all");
+        mode.setRequired(true);
+        options.addOption(mode);
+
+        Option stack = new Option("s", "stackType", true, "random or pairwise");
+        stack.setRequired(true);
+        options.addOption(stack);
+
+        CommandLineParser parser = new DefaultParser();
+        HelpFormatter formatter = new HelpFormatter();
+        CommandLine cmd;
+
+        try {
+            cmd = parser.parse(options, args);
+        } catch (ParseException e) {
+            System.out.println(e.getMessage());
+            formatter.printHelp("Pancake Sorter", options);
+
+            System.exit(1);
+            return;
+        }
+
+        String inputFilePath = cmd.getOptionValue("input");
+        String outputFilePath = cmd.getOptionValue("output");
+
+        System.out.println(inputFilePath);
+        System.out.println(outputFilePath);
+
     }
 
     private static int countSolutions(int [] pancakes, int bound) {
@@ -50,6 +94,7 @@ public class PancakeProblem {
             if(currentPancakes.isSorted()) {
                 count++;
                 continue;
+                //return count;
             }
             int nextDepth = currentPancakes.depth + 1;
             for(int i = 2;i <= currentPancakes.pancakes.length; i++) {

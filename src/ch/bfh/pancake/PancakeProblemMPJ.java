@@ -1,6 +1,7 @@
 package ch.bfh.pancake;
 
 import mpi.MPI;
+import mpi.Request;
 
 import java.util.ArrayDeque;
 import java.util.ArrayList;
@@ -11,6 +12,11 @@ import java.util.List;
  * Created by Jan on 16.01.2017.
  */
 public class PancakeProblemMPJ {
+
+    static Request cancelRequest;
+    static int before;
+    static int next;
+
 
     private static int gapHeuristic(int[] pancakes) {
         int h = 0;
@@ -29,6 +35,8 @@ public class PancakeProblemMPJ {
         MPI.Init(args);
 
         int[] result = new int[1];
+        boolean[] cancelPayload = new boolean[1];
+
 
         ArrayDeque<PancakeNode> pancakeStack = new ArrayDeque<>();
 
@@ -36,9 +44,12 @@ public class PancakeProblemMPJ {
 
         int me = MPI.COMM_WORLD.Rank();
         int size = MPI.COMM_WORLD.Size();
+        before = me == 0 ? size-1 : me -1;
+        next = me == size-1 ? 0 : me + 1;
+        cancelRequest = MPI.COMM_WORLD.Irecv(cancelPayload, 0,1, MPI.BOOLEAN, before , 88);
 
         long start = System.nanoTime();
-        int[] pancakes = {2, 1, 4, 3, 6, 5, 8, 7, 10, 9, 12, 11, 14, 13, 16, 15, 17};
+        int[] pancakes = {2, 1, 4, 3, 6, 5, 8, 7, 10, 9, 12, 11, 14, 13, 15};
         int bound = gapHeuristic(pancakes);
 
         PancakeNode[] buffer = new PancakeNode[1];
@@ -79,6 +90,8 @@ public class PancakeProblemMPJ {
         do {
             System.out.println("bound is now " + bound);
             count = countSolutions(pancakeStack.clone(), bound);
+            // Next Iteration not allowed if one has result. => Wait for each other
+            MPI.COMM_WORLD.Barrier();
             bound++;
         } while (count <= 0);
 
@@ -96,12 +109,21 @@ public class PancakeProblemMPJ {
 
         PancakeNode currentPancakes;
         while (!pancakeStack.isEmpty()) {
+
+            if(cancelRequest.Test() != null) {
+                System.out.println("This is thend");
+                MPI.COMM_WORLD.Send(new boolean[]{true}, 0, 1, MPI.BOOLEAN, next, 88);
+                return 1;
+            }
+
             currentPancakes = pancakeStack.removeFirst();
             int f = currentPancakes.depth + currentPancakes.heuristic;
             if (f > bound) continue;
             if (currentPancakes.isSorted()) {
                 count++;
-                continue;
+                MPI.COMM_WORLD.Send(new boolean[]{true}, 0, 1, MPI.BOOLEAN, next, 88);
+                return 1;
+                //continue;
             }
             int nextDepth = currentPancakes.depth + 1;
             for (int i = 2; i <= currentPancakes.pancakes.length; i++) {
