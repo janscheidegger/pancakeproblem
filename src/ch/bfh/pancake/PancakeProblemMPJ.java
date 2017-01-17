@@ -49,7 +49,7 @@ public class PancakeProblemMPJ {
         cancelRequest = MPI.COMM_WORLD.Irecv(cancelPayload, 0,1, MPI.BOOLEAN, before , 88);
 
         long start = System.nanoTime();
-        int[] pancakes = {2, 1, 4, 3, 6, 5, 8, 7, 10, 9, 12, 11, 14, 13, 15};
+        int[] pancakes = {2, 1, 4, 3, 6, 5, 8, 7, 10, 9, 12, 11, 14, 13, 16, 15, 17};
         int bound = gapHeuristic(pancakes);
 
         PancakeNode[] buffer = new PancakeNode[1];
@@ -110,20 +110,20 @@ public class PancakeProblemMPJ {
         PancakeNode currentPancakes;
         while (!pancakeStack.isEmpty()) {
 
-            if(cancelRequest.Test() != null) {
-                System.out.println("This is thend");
-                MPI.COMM_WORLD.Send(new boolean[]{true}, 0, 1, MPI.BOOLEAN, next, 88);
-                return 1;
-            }
+//            if(cancelRequest.Test() != null) {
+//                System.out.println("This is thend");
+//                MPI.COMM_WORLD.Send(new boolean[]{true}, 0, 1, MPI.BOOLEAN, next, 88);
+//                return 1;
+//            }
 
             currentPancakes = pancakeStack.removeFirst();
             int f = currentPancakes.depth + currentPancakes.heuristic;
             if (f > bound) continue;
             if (currentPancakes.isSorted()) {
                 count++;
-                MPI.COMM_WORLD.Send(new boolean[]{true}, 0, 1, MPI.BOOLEAN, next, 88);
-                return 1;
-                //continue;
+//                MPI.COMM_WORLD.Send(new boolean[]{true}, 0, 1, MPI.BOOLEAN, next, 88);
+//                return 1;
+                continue;
             }
             int nextDepth = currentPancakes.depth + 1;
             for (int i = 2; i <= currentPancakes.pancakes.length; i++) {
