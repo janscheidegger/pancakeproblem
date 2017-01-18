@@ -14,8 +14,12 @@ import java.util.List;
 public class PancakeProblemMPJ {
 
     static Request cancelRequest;
-    static int before;
+    static Request getWorkRequest;
+    static Request canIAskRequest;
+    static boolean[] canIAsk = new boolean[1];
+    static int prev;
     static int next;
+    static PancakeNode[] work = new PancakeNode[1];
 
 
     private static int gapHeuristic(int[] pancakes) {
@@ -34,8 +38,10 @@ public class PancakeProblemMPJ {
 
         MPI.Init(args);
 
+
         int[] result = new int[1];
         boolean[] cancelPayload = new boolean[1];
+        boolean[] getWorkPayload = new boolean[1];
 
 
         ArrayDeque<PancakeNode> pancakeStack = new ArrayDeque<>();
@@ -44,9 +50,14 @@ public class PancakeProblemMPJ {
 
         int me = MPI.COMM_WORLD.Rank();
         int size = MPI.COMM_WORLD.Size();
-        before = me == 0 ? size-1 : me -1;
+        prev = me == 0 ? size-1 : me -1;
         next = me == size-1 ? 0 : me + 1;
-        cancelRequest = MPI.COMM_WORLD.Irecv(cancelPayload, 0,1, MPI.BOOLEAN, before , 88);
+        cancelRequest = MPI.COMM_WORLD.Irecv(cancelPayload, 0,1, MPI.BOOLEAN, prev, 88);
+        getWorkRequest = MPI.COMM_WORLD.Irecv(getWorkPayload, 0,1, MPI.BOOLEAN, prev, 66);
+
+        // Try not to deadlock
+        canIAskRequest = MPI.COMM_WORLD.Irecv(canIAsk, 0,1, MPI.BOOLEAN, next , 55);
+
 
         long start = System.nanoTime();
         int[] pancakes = {2, 1, 4, 3, 6, 5, 8, 7, 10, 9, 12, 11, 14, 13, 16, 15, 17};
@@ -107,8 +118,32 @@ public class PancakeProblemMPJ {
     private static int countSolutions(ArrayDeque<PancakeNode> pancakeStack, int bound) {
         int count = 0;
 
+        System.out.println(MPI.COMM_WORLD.Rank() + ": I'm back at work");
+        MPI.COMM_WORLD.Isend(new boolean[] {true}, 0, 1, MPI.BOOLEAN, prev, 55);
         PancakeNode currentPancakes;
-        while (!pancakeStack.isEmpty()) {
+        while (true) {
+
+            if (pancakeStack.isEmpty()) {
+                System.out.println(MPI.COMM_WORLD.Rank() + ": Do not ask me!!");
+                MPI.COMM_WORLD.Isend(new boolean[] {false}, 0, 1, MPI.BOOLEAN, prev, 55);
+                System.out.println(canIAsk[0]);
+                if(canIAskRequest.Test() != null && canIAsk[0]) {
+                    System.out.println(canIAsk[0]);
+                    getWork(pancakeStack);
+                }
+                if(!pancakeStack.isEmpty()) {
+                    System.out.println(MPI.COMM_WORLD.Rank() + ": I'm back at work");
+                    MPI.COMM_WORLD.Isend(new boolean[] {true}, 0, 1, MPI.BOOLEAN, prev, 55);
+                    continue;
+                }
+                System.out.println(MPI.COMM_WORLD.Rank() + ": No one has Work for me :(");
+                break;
+            }
+
+
+            if(getWorkRequest.Test() != null) {
+                sendWork(pancakeStack);
+            }
 
 //            if(cancelRequest.Test() != null) {
 //                System.out.println("This is thend");
@@ -132,8 +167,28 @@ public class PancakeProblemMPJ {
                 int h2 = gapHeuristic(newPancakes);
                 pancakeStack.addFirst(new PancakeNode(newPancakes, nextDepth, i, h2));
             }
+
         }
         return count;
+    }
+
+    private static void getWork(ArrayDeque<PancakeNode> pancakeNodes) {
+        System.out.println(MPI.COMM_WORLD.Rank() + ": Hey! "+next+" I need Work!");
+        MPI.COMM_WORLD.Isend(new boolean[]{true}, 0, 1, MPI.BOOLEAN, next, 66);
+        MPI.COMM_WORLD.Recv(work,0 ,1, MPI.OBJECT, next, 77);
+        if(work[0] != null) {
+            pancakeNodes.addFirst(work[0]);
+        }
+    }
+
+    private static void sendWork(ArrayDeque<PancakeNode> pancakeNodes) {
+        if(pancakeNodes.size()>1) {
+            System.out.println(MPI.COMM_WORLD.Rank() + ": I give you Work! TO: "+ prev);
+            MPI.COMM_WORLD.Send(new PancakeNode[] {pancakeNodes.removeLast()}, 0, 1, MPI.OBJECT, prev, 77);
+
+        } else {
+            System.out.println(MPI.COMM_WORLD.Rank() + ": Sorry, no work here! TO: "+ prev);
+        }
     }
 
 
