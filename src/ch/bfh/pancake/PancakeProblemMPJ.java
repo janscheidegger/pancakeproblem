@@ -19,6 +19,9 @@ public class PancakeProblemMPJ {
     static int next;
     static PancakeNode[] work = new PancakeNode[1];
 
+//    static String mode = "first";
+    static String mode = "count";
+
 
     private static int gapHeuristic(int[] pancakes) {
         int h = 0;
@@ -54,6 +57,8 @@ public class PancakeProblemMPJ {
         getWorkRequest = MPI.COMM_WORLD.Irecv(getWorkPayload, 0, 1, MPI.BOOLEAN, prev, 66);
 
         long start = System.nanoTime();
+
+
         int[] pancakes = {2, 1, 4, 3, 6, 5, 8, 7, 10, 9, 12, 11, 14, 13, 16, 15, 17};
         int bound = gapHeuristic(pancakes);
 
@@ -71,13 +76,13 @@ public class PancakeProblemMPJ {
         }
 
         if (me == 0) {
-            PancakeNode firstPancake = new PancakeNode(pancakes, 0, 0, bound);
+            PancakeNode firstPancake = new PancakeNode(pancakes, 0, 0, bound, new int[pancakes.length * 2]);
             List<PancakeNode> pancakeList = new ArrayList<>();
             for (int i = 2; i <= firstPancake.pancakes.length; i++) {
                 if (i == firstPancake.lastcut) continue;
                 int[] newPancakes = flipAt(firstPancake.pancakes, i);
                 int h2 = gapHeuristic(newPancakes);
-                pancakeList.add(new PancakeNode(newPancakes, 1, i, h2));
+                pancakeList.add(new PancakeNode(newPancakes, 1, i, h2, firstPancake.cuts));
             }
             for (int i = 0; i < pancakeList.size(); i++) {
                 buffer[0] = pancakeList.get(i);
@@ -94,7 +99,11 @@ public class PancakeProblemMPJ {
 
         do {
             System.out.println("bound is now " + bound);
-            count = countSolutions(pancakeStack.clone(), bound);
+            if ("count".equals(mode)) {
+                count = countSolutions(pancakeStack.clone(), bound);
+            } else {
+                count = findBestSolution(pancakeStack.clone(), bound);
+            }
             // Next Iteration not allowed if one has result. => Wait for each other
             //System.out.println(MPI.COMM_WORLD.Rank() + ": I'm DONE");
             MPI.COMM_WORLD.Barrier();
@@ -108,6 +117,59 @@ public class PancakeProblemMPJ {
         MPI.COMM_WORLD.Allreduce(new int[]{count}, 0, result, 0, 1, MPI.INT, MPI.SUM);
         System.out.println(Arrays.toString(result));
         MPI.Finalize();
+    }
+
+    private static int findBestSolution(ArrayDeque<PancakeNode> pancakeStack, int bound) {
+        int count = 0;
+        getWorkRequest.Cancel();
+        //System.out.println(MPI.COMM_WORLD.Rank() + ": I'm back at work");
+        PancakeNode currentPancakes;
+        while (true) {
+
+            if (pancakeStack.isEmpty()) {
+                getWork(pancakeStack);
+                if (work[0] == null) {
+                    //System.out.println(MPI.COMM_WORLD.Rank() + ": Got Signal to leave");
+                    MPI.COMM_WORLD.Isend(new PancakeNode[]{null}, 0, 1, MPI.OBJECT, prev, 77);
+                    break;
+                } else {
+                    //System.out.println(MPI.COMM_WORLD.Rank() + ": I'm back at work");
+                    continue;
+                }
+            }
+
+            if (getWorkRequest.Test() != null) {
+                sendWork(pancakeStack);
+            }
+
+            if (cancelRequest.Test() != null) {
+                System.out.println("This is thend");
+                MPI.COMM_WORLD.Send(new boolean[]{true}, 0, 1, MPI.BOOLEAN, next, 88);
+                return 1;
+            }
+
+            currentPancakes = pancakeStack.removeFirst();
+            int f = currentPancakes.depth + currentPancakes.heuristic;
+            if (f > bound) continue;
+            if (currentPancakes.isSorted()) {
+                count++;
+                System.out.println(Arrays.toString(currentPancakes.cuts));
+                MPI.COMM_WORLD.Send(new boolean[]{true}, 0, 1, MPI.BOOLEAN, next, 88);
+                return 1;
+//                continue;
+            }
+            int nextDepth = currentPancakes.depth + 1;
+            for (int i = 2; i <= currentPancakes.pancakes.length; i++) {
+                if (i == currentPancakes.lastcut) continue;
+                int[] newPancakes = flipAt(currentPancakes.pancakes, i);
+                int h2 = gapHeuristic(newPancakes);
+                pancakeStack.addFirst(new PancakeNode(newPancakes, nextDepth, i, h2, currentPancakes.cuts));
+            }
+
+        }
+        return count;
+
+
     }
 
     private static int countSolutions(ArrayDeque<PancakeNode> pancakeStack, int bound) {
@@ -187,6 +249,22 @@ public class PancakeProblemMPJ {
             temp[i] = pancakes[position - i - 1];
         }
         return temp;
+    }
+
+    private static void printSolution(int[] pancakes, int[] flips) {
+        int i = 0;
+        do {
+            System.out.print("State " + i + ": ");
+            for (int j = 0; j < flips[i]; j++) {
+                System.out.print(pancakes[j] + ", ");
+            }
+            System.out.print("| ");
+            for (int j = flips[i]; j < pancakes.length; j++) {
+                System.out.print(pancakes[j] + ", ");
+            }
+            System.out.println();
+            pancakes = flipAt(pancakes, flips[++i]);
+        } while (flips[i] != 0);
     }
 
 }
