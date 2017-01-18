@@ -24,8 +24,8 @@ public class PancakeProblemMPJ {
             if (Math.abs(pancakes[i] - pancakes[i + 1]) > 1) {
                 h++;
             }
-            if (pancakes[pancakes.length - 1] != pancakes.length) h++;
         }
+        if (pancakes[pancakes.length - 1] != pancakes.length) h++;
 
         return h;
     }
@@ -44,9 +44,9 @@ public class PancakeProblemMPJ {
 
         int me = MPI.COMM_WORLD.Rank();
         int size = MPI.COMM_WORLD.Size();
-        before = me == 0 ? size-1 : me -1;
-        next = me == size-1 ? 0 : me + 1;
-        cancelRequest = MPI.COMM_WORLD.Irecv(cancelPayload, 0,1, MPI.BOOLEAN, before , 88);
+        before = me == 0 ? size - 1 : me - 1;
+        next = me == size - 1 ? 0 : me + 1;
+        cancelRequest = MPI.COMM_WORLD.Irecv(cancelPayload, 0, 1, MPI.BOOLEAN, before, 88);
 
         long start = System.nanoTime();
         int[] pancakes = {2, 1, 4, 3, 6, 5, 8, 7, 10, 9, 12, 11, 14, 13, 16, 15, 17};
