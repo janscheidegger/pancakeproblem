@@ -15,8 +15,6 @@ public class PancakeProblemMPJ {
 
     static Request cancelRequest;
     static Request getWorkRequest;
-    static Request canIAskRequest;
-    static boolean[] canIAsk = new boolean[1];
     static int prev;
     static int next;
     static PancakeNode[] work = new PancakeNode[1];
@@ -54,10 +52,6 @@ public class PancakeProblemMPJ {
         next = me == size - 1 ? 0 : me + 1;
         cancelRequest = MPI.COMM_WORLD.Irecv(cancelPayload, 0, 1, MPI.BOOLEAN, prev, 88);
         getWorkRequest = MPI.COMM_WORLD.Irecv(getWorkPayload, 0, 1, MPI.BOOLEAN, prev, 66);
-
-        // Try not to deadlock
-        canIAskRequest = MPI.COMM_WORLD.Irecv(canIAsk, 0, 1, MPI.BOOLEAN, next, 55);
-
 
         long start = System.nanoTime();
         int[] pancakes = {2, 1, 4, 3, 6, 5, 8, 7, 10, 9, 12, 11, 14, 13, 16, 15, 17};
@@ -102,6 +96,7 @@ public class PancakeProblemMPJ {
             System.out.println("bound is now " + bound);
             count = countSolutions(pancakeStack.clone(), bound);
             // Next Iteration not allowed if one has result. => Wait for each other
+            //System.out.println(MPI.COMM_WORLD.Rank() + ": I'm DONE");
             MPI.COMM_WORLD.Barrier();
             bound++;
         } while (count <= 0);
@@ -117,35 +112,22 @@ public class PancakeProblemMPJ {
 
     private static int countSolutions(ArrayDeque<PancakeNode> pancakeStack, int bound) {
         int count = 0;
-
-        System.out.println(MPI.COMM_WORLD.Rank() + ": I'm back at work");
-        MPI.COMM_WORLD.Isend(new boolean[]{true}, 0, 1, MPI.BOOLEAN, prev, 55);
+        getWorkRequest.Cancel();
+        //System.out.println(MPI.COMM_WORLD.Rank() + ": I'm back at work");
         PancakeNode currentPancakes;
         while (true) {
 
             if (pancakeStack.isEmpty()) {
-                System.out.println(MPI.COMM_WORLD.Rank() + ": Do not ask me!!");
-                MPI.COMM_WORLD.Isend(new boolean[]{false}, 0, 1, MPI.BOOLEAN, prev, 55);
-                System.out.println(canIAsk[0]);
-                if (canIAskRequest.Test() != null) {
-                    if (canIAsk[0]) {
-                        System.out.println(canIAsk[0]);
-                        getWork(pancakeStack);
-                        canIAskRequest = MPI.COMM_WORLD.Irecv(canIAsk, 0, 1, MPI.BOOLEAN, next, 55);
-                    } else {
-                        canIAskRequest = MPI.COMM_WORLD.Irecv(canIAsk, 0, 1, MPI.BOOLEAN, next, 55);
-
-                    }
-                }
-                if (!pancakeStack.isEmpty()) {
-                    System.out.println(MPI.COMM_WORLD.Rank() + ": I'm back at work");
-                    MPI.COMM_WORLD.Isend(new boolean[]{true}, 0, 1, MPI.BOOLEAN, prev, 55);
+                getWork(pancakeStack);
+                if (work[0] == null) {
+                    //System.out.println(MPI.COMM_WORLD.Rank() + ": Got Signal to leave");
+                    MPI.COMM_WORLD.Isend(new PancakeNode[]{null}, 0, 1, MPI.OBJECT, prev, 77);
+                    break;
+                } else {
+                    //System.out.println(MPI.COMM_WORLD.Rank() + ": I'm back at work");
                     continue;
                 }
-                System.out.println(MPI.COMM_WORLD.Rank() + ": No one has Work for me :(");
-                break;
             }
-
 
             if (getWorkRequest.Test() != null) {
                 sendWork(pancakeStack);
@@ -179,7 +161,7 @@ public class PancakeProblemMPJ {
     }
 
     private static void getWork(ArrayDeque<PancakeNode> pancakeNodes) {
-        System.out.println(MPI.COMM_WORLD.Rank() + ": Hey! " + next + " I need Work!");
+        //System.out.println(MPI.COMM_WORLD.Rank() + ": Hey! " + next + " I need Work!");
         MPI.COMM_WORLD.Isend(new boolean[]{true}, 0, 1, MPI.BOOLEAN, next, 66);
         MPI.COMM_WORLD.Recv(work, 0, 1, MPI.OBJECT, next, 77);
         if (work[0] != null) {
@@ -189,11 +171,12 @@ public class PancakeProblemMPJ {
 
     private static void sendWork(ArrayDeque<PancakeNode> pancakeNodes) {
         if (pancakeNodes.size() > 1) {
-            System.out.println(MPI.COMM_WORLD.Rank() + ": I give you Work! TO: " + prev);
+            //System.out.println(MPI.COMM_WORLD.Rank() + ": I give you Work! TO: " + prev);
             MPI.COMM_WORLD.Send(new PancakeNode[]{pancakeNodes.removeLast()}, 0, 1, MPI.OBJECT, prev, 77);
 
         } else {
-            System.out.println(MPI.COMM_WORLD.Rank() + ": Sorry, no work here! TO: " + prev);
+            //System.out.println(MPI.COMM_WORLD.Rank() + ": Sorry, no work here! TO: " + prev);
+            MPI.COMM_WORLD.Isend(new PancakeNode[]{null}, 0, 1, MPI.OBJECT, prev, 77);
         }
     }
 
